@@ -1,0 +1,22 @@
+/mpd-lyrics
+/mpd-lyrics.exe
+/dist/
+/pkg/
+node_modules/
+puppeteer.json
+*.test
+*.out
+.DS_Store
+
+# Ignore Sublime Text project files
+*.sublime-project
+*.sublime-workspace
+
+# Added entries (1 items)
+*.exe
+
+# Added entries (1 items)
+downloads*/
+
+# Added entries (1 items)
+config.toml

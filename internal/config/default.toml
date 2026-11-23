@@ -1,0 +1,130 @@
+# mpd-lyrics configuration
+#
+# Every option is shown with its default value. Delete what you do not need.
+#
+# Any key can be overridden per operating system by prefixing its section with
+# platform.<goos>. where <goos> is one of: linux, darwin, windows, freebsd, ...
+#
+#   [platform.windows.style]
+#   font_size = 1
+#   scale_method = "none"
+#
+# Lookup order for a style key in mode M (fade or ticker):
+#   [platform.<goos>.M] -> [M] -> [platform.<goos>.style] -> [style]
+
+[general]
+# "fade"   : several lines, current line highlighted, others fade out.
+# "ticker" : news-ticker style, text scrolls horizontally in sync with the song.
+mode = "fade"
+# Redraw rate in frames per second (1-120).
+fps = 30
+# How often MPD is polled, in milliseconds (50-5000). Playback position is
+# interpolated between polls, so this does not limit animation smoothness.
+poll_interval_ms = 300
+# Shift lyric timing. Positive = lyrics appear earlier. Useful to compensate
+# for audio output latency (Bluetooth, network streams, ...).
+offset_ms = 0
+# auto | truecolor | 256 | 16 | none  (NO_COLOR is always respected)
+color_mode = "auto"
+# How "font size" is realised in a terminal:
+#   auto  : kitty text-sizing protocol when running in kitty, otherwise none
+#   kitty : kitty text-sizing protocol (OSC 66), scale 1-7
+#   dec   : DEC double-height/width lines (xterm, mlterm), scale 1-2
+#   none  : ignore font_size / current_font_size
+scale_method = "auto"
+
+[mpd]
+# Empty host/port fall back to $MPD_HOST / $MPD_PORT, then localhost:6600.
+# A host starting with "/" or "@" is a unix socket. $MPD_HOST may be
+# "password@host".
+host = ""
+port = 0
+password = ""
+timeout_ms = 3000
+# Optional: root of your music library. When set, a sidecar "Song.lrc" next to
+# "Song.flac" is used before asking LRCLIB.
+music_dir = ""
+
+[lrclib]
+base_url = "https://lrclib.net"
+timeout_ms = 8000
+# Cache lookups on disk so every track is fetched at most once per TTL.
+cache = true
+# Empty = <user cache dir>/mpd-lyrics
+cache_dir = ""
+cache_ttl_days = 30
+# "Not found" answers are cached for a shorter time so new uploads get picked up.
+not_found_ttl_hours = 24
+# Reject search results whose duration differs from the playing track by more
+# than this many seconds (avoids badly synced lyrics). 0 disables the check.
+max_duration_diff_s = 8
+# What to do when LRCLIB only has plain (unsynced) lyrics:
+#   estimate : spread the lines over the track length (flagged with "≈")
+#   off      : show nothing
+unsynced_fallback = "estimate"
+# Prefer a local .lrc sidecar (needs mpd.music_dir) over LRCLIB.
+prefer_local = true
+
+[style]
+# Colours: a name (black red green yellow blue magenta cyan white gray orange
+# pink purple lime), "#rrggbb", "#rgb" or "rgb(r,g,b)".
+text_color = "green"
+# The current line ("highlight"). highlight_color is accepted as an alias.
+current_color = "yellow"
+# Colour that non-current text fades towards. Set this to your terminal
+# background; use "#ffffff" on a light theme.
+fade_to = "#000000"
+# Scale (1-7) for ordinary lines and for the current line. Needs scale_method
+# kitty or dec (see above). In ticker mode the whole tape uses current_font_size.
+font_size = 1
+current_font_size = 1
+bold_current = true
+# Karaoke wipe: the already sung part of the current line uses current_color,
+# the rest keeps text_color.
+wipe = false
+
+[fade]
+# Maximum number of visible lyric lines (odd numbers look best).
+lines = 9
+# Blank rows between lyric lines (0-3).
+spacing = 1
+# Cross-fade duration when the current line changes, in ms.
+fade_ms = 400
+# Opacity of the furthest line (0-1).
+min_alpha = 0.15
+# center | left
+align = "center"
+# Any [style] key may be overridden here, e.g.:
+# current_font_size = 2
+
+[ticker]
+# from_right : text enters on the right and moves left (classic news ticker).
+# from_left  : text enters on the left and moves right.
+direction = "from_right"
+# Where, as a fraction of the width measured from the entry edge, the current
+# line starts at the moment it becomes active (0-0.9). Small = enters at the
+# edge and crosses the whole screen; larger = starts closer to the middle.
+anchor = 0.3
+separator = "   ♪   "
+# Cells over which text fades out towards the screen edges (0 = off).
+edge_fade = 8
+# Opacity of previous/next lines in the tape (0 hides them).
+neighbor_alpha = 0.45
+# Any [style] key may be overridden here, e.g.:
+# text_color = "cyan"
+
+[ui]
+# Artist - title header on the first row.
+show_title = true
+# Reserve the last row for transient messages (offset changes, mode switches).
+show_footer = true
+# Show the key bindings in the footer. Toggle at runtime with "?".
+show_help = false
+
+# --- Platform overrides (examples) -------------------------------------------
+# [platform.windows.style]
+# text_color = "#00c853"
+# [platform.darwin.general]
+# color_mode = "256"
+# [platform.linux.fade]
+# lines = 11

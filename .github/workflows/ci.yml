@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Format, vet, config sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: gofmt
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then echo "Run gofmt on:"; echo "$out"; exit 1; fi
+      - name: go vet
+        run: go vet ./...
+      - name: config.example.toml is in sync with the embedded default
+        run: diff -u internal/config/default.toml config.example.toml
+      - name: go.mod has no third-party dependencies
+        run: |
+          if grep -q '^require' go.mod; then echo "mpd-lyrics is stdlib-only"; exit 1; fi
+
+  test:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ["1.22", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Test
+        run: go test -count=1 ./...
+      - name: Race detector
+        if: matrix.os == 'ubuntu-latest'
+        run: go test -race -count=1 ./...
+
+  cross-build:
+    name: Cross-compile all targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: make cross VERSION=ci
+      - name: Smoke-test the Linux binary
+        run: |
+          ./dist/mpd-lyrics-ci-linux-amd64 -version
+          ./dist/mpd-lyrics-ci-linux-amd64 -check
+          ./dist/mpd-lyrics-ci-linux-amd64 -print-config | diff - config.example.toml
+
+  mermaid:
+    name: Validate Mermaid diagrams
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Render every ```mermaid block
+        run: |
+          npm install --no-save @mermaid-js/mermaid-cli@11
+          echo '{"args":["--no-sandbox"]}' > puppeteer.json
+          fail=0
+          for f in README.md docs/*.md; do
+            [ -f "$f" ] || continue
+            awk -v base="$(basename "$f" .md)" '
+              /^```mermaid/ {n++; out=sprintf("/tmp/%s-%d.mmd", base, n); inb=1; next}
+              /^```/ && inb {inb=0; close(out); next}
+              inb {print > out}' "$f"
+          done
+          for d in /tmp/*.mmd; do
+            [ -f "$d" ] || continue
+            npx mmdc -p puppeteer.json -i "$d" -o "$d.svg" >/dev/null 2>&1 || { echo "INVALID: $d"; cat "$d"; fail=1; }
+          done
+          exit $fail
